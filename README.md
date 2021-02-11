@@ -11,5 +11,5 @@ https://github.com/opencobra/cobratoolbox/blob/master/docs/source/notes/ExcelMod
 ```
 import importExcelModel
 
-my_model=importExcelModel.importExcelModel(file_path,model_id='my_model')
+my_model=importExcelModel.import_excel_model(file_path,model_id='my_model')
 ```
