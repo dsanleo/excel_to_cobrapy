@@ -1,5 +1,6 @@
 import pandas as pd
 from cobra import Model, Reaction, Metabolite
+from cobra.io import write_sbml_model
 
 MET_SHEET_ID='Metabolite List'
 MET_ID_IDX='Abbreviation'
@@ -73,3 +74,8 @@ def import_excel_model(file_excel_path, model_id="default_model"):
             print("The row: "+index+" is empty or doesn't have id.")
         
     return(model)
+
+def excel_to_sbml(file_excel_path, file_sbml_path,model_id="default_model",**kwargs):
+    write_sbml_model(import_excel_model(file_excel_path,model_id),file_sbml_path,**kwargs)
+
+
