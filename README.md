@@ -3,6 +3,10 @@ Repository with functions to import an excel model with the last COBRA structure
 
 https://github.com/opencobra/cobratoolbox/blob/master/docs/source/notes/ExcelModelFileDefinition.md
 
+## Requirements
+- Pandas >= 0.25
+- Cobra >= 0.15
+
 ## Usage
 ```
 import importExcelModel
