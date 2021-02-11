@@ -1,6 +1,6 @@
-# excel_to_cobrapy
-Repository with functions to import an excel model with the last COBRA structure version to cobrapy.
-
+# Model Excel Importer
+Repository with functions to import an excel model, with the last COBRA structure version, to cobrapy.
+## Excel structure
 https://github.com/opencobra/cobratoolbox/blob/master/docs/source/notes/ExcelModelFileDefinition.md
 
 ## Requirements
