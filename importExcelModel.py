@@ -48,28 +48,28 @@ def import_excel_model(file_excel_path, model_id="default_model"):
             lb=row[RXN_LOWER_BOUND_IDX] if not pd.isna(row[RXN_LOWER_BOUND_IDX]) else DEFAULT_LOWER_BOUND
             ub=row[RXN_UPPER_BOUND_IDX] if not pd.isna(row[RXN_UPPER_BOUND_IDX]) else DEFAULT_UPPER_BOUND
             objective_coeff=row[RXN_OBJECTIVE_IDX] if not pd.isna(row[RXN_OBJECTIVE_IDX]) else DEFAULT_OBJECTIVE_COEFF
+
             reaction=Reaction(id=row[RXN_ID_IDX],
                                  name=row[RXN_NAME_IDX],
-                                 subsystem=row[RXN_SUBSYSTEM_IDX],
-                                 lower_bound=lb,
-                                 upper_bound=ub)
+                                 subsystem=row[RXN_SUBSYSTEM_IDX]
+                                 )
 
             # Add Genes
             if not pd.isna(row[RXN_GPR_IDX]):
                 reaction.gene_reaction_rule=row[RXN_GPR_IDX]
-
             # Add the reaction to the model
             model.add_reaction(reaction)
-
-            # Include the reaction              
+            # Add the reaction formula            
             try:
                 model.reactions.get_by_id(row[RXN_ID_IDX]).build_reaction_from_string(row[RXN_REACTION_IDX])
             except Exception as e:
                 print("Error parsing %s string '%s'" % (repr(rxn), rxn_str))
                 raise e 
 
-            # Include the objective coefficient
+            # Include the objective coefficient and bounds
             model.reactions.get_by_id(row[RXN_ID_IDX]).objective_coefficient=objective_coeff
+            model.reactions.get_by_id(row[RXN_ID_IDX]).lower_bound=lb
+            model.reactions.get_by_id(row[RXN_ID_IDX]).upper_bound=ub
         else:
             print("The row: "+index+" is empty or doesn't have id.")
         
