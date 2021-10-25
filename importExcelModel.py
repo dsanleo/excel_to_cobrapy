@@ -35,11 +35,11 @@ def import_excel_model(file_excel_path, model_id="default_model"):
     else:
         print("Unknown file format")
         return(None)
-
+    print("Loading metabolites...");
     metabolites_list=list()
     for index,row in model_excel_metabolites.iterrows():
         compartment=row[MET_COMPARTMENT_IDX] if not pd.isna(row[MET_COMPARTMENT_IDX]) else DEFAULT_COMPARTMENT
-        try:
+        if not pd.isnull(row[MET_ID_IDX]):
             metabolite=Metabolite(id=row[MET_ID_IDX],
                   formula=row[MET_FORMULA_IDX],
                   name=row[MET_NAME_IDX],
@@ -47,12 +47,16 @@ def import_excel_model(file_excel_path, model_id="default_model"):
                   charge=row[MET_CHARGE_IDX])
             metabolites_list.append(metabolite)
     # Add metabolites to the model
-            model.add_metabolites(metabolites_list)
-        except:
-            print("Error on line "+str(index))
-
+            
+        else:
+            print("Metabolite: Error on line "+str(index)+", there is no ID");
+    try:
+        model.add_metabolites(metabolites_list)
+    except Exception as e:
+        print("Error adding metabolites")
+        raise e 
     #Import reactions
-
+    print("Loading reactions...");
     if file_extension=='.xlsx':
         model_excel_reactions=pd.read_excel(file_excel_path,sheet_name=RXN_SHEET_ID,engine='openpyxl')
     elif file_extension=='.xls':
@@ -80,7 +84,7 @@ def import_excel_model(file_excel_path, model_id="default_model"):
                 model.add_reaction(reaction)
                 # Add the reaction formula            
             except:
-                print("Error on line "+str(index))
+                print("Reaction: Error on line "+str(index)+" "+str(row[RXN_ID_IDX]))
             
 
             try:
@@ -94,11 +98,39 @@ def import_excel_model(file_excel_path, model_id="default_model"):
             model.reactions.get_by_id(row[RXN_ID_IDX]).lower_bound=lb
             model.reactions.get_by_id(row[RXN_ID_IDX]).upper_bound=ub
         else:
-            print("The row: "+index+" is empty or doesn't have id.")
+            print("The row: "+str(index)+" is empty or doesn't have id.")
         
     return(model)
 
 def excel_to_sbml(file_excel_path, file_sbml_path,model_id="default_model",**kwargs):
     write_sbml_model(import_excel_model(file_excel_path,model_id),file_sbml_path,**kwargs)
 
+def cobrapy_to_excel(model,filename):
+    reaction_list=list()
+    for reaction in model.reactions:
+        row={"Abbreviation": reaction.id, 
+             "Reaction": reaction.build_reaction_string(),
+             'GPR' : reaction.gene_reaction_rule, 
+             'Lower bound': reaction.lower_bound,
+             'Upper bound': reaction.upper_bound,
+             'Objective': reaction.objective_coefficient,
+            'Confidence Score':4,
+            'Subsystem':reaction.subsystem,
+            'Description':reaction.name}
+        reaction_list.append(row)
+
+    metabolite_list=list()
+    for metabolite in model.metabolites:
+        row={"Abbreviation": metabolite.id, 
+             "Formula": metabolite.formula,
+             'Description' : metabolite.name, 
+             'Compartment': metabolite.compartment,
+             'Charge': metabolite.charge}
+        metabolite_list.append(row)
+
+    df1=pd.DataFrame(reaction_list)
+    df2=pd.DataFrame(metabolite_list)
+    with pd.ExcelWriter(filename) as writer:  
+        df1.to_excel(writer, sheet_name='Reaction List',index=False)
+        df2.to_excel(writer, sheet_name='Metabolite List',index=False)
 
