@@ -1,7 +1,7 @@
 import pandas as pd
 from cobra import Model, Reaction, Metabolite
 from cobra.io import write_sbml_model
-
+import os
 MET_SHEET_ID='Metabolite List'
 MET_ID_IDX='Abbreviation'
 MET_FORMULA_IDX='Charged formula'
@@ -25,23 +25,45 @@ DEFAULT_OBJECTIVE_COEFF=0
 def import_excel_model(file_excel_path, model_id="default_model"):
     # Create a new cobra model
     model = Model(model_id)
+    filename, file_extension = os.path.splitext(file_excel_path)
     
     #Import metabolites
-    model_excel_metabolites=pd.read_excel(file_excel_path,sheet_name=MET_SHEET_ID)
+    if file_extension=='.xlsx':
+        model_excel_metabolites=pd.read_excel(file_excel_path,sheet_name=MET_SHEET_ID,engine='openpyxl')
+    elif file_extension=='.xls':
+        model_excel_metabolites=pd.read_excel(file_excel_path,sheet_name=MET_SHEET_ID,engine='xlrd')
+    else:
+        print("Unknown file format")
+        return(None)
+    print("Loading metabolites...");
     metabolites_list=list()
     for index,row in model_excel_metabolites.iterrows():
         compartment=row[MET_COMPARTMENT_IDX] if not pd.isna(row[MET_COMPARTMENT_IDX]) else DEFAULT_COMPARTMENT
-        metabolite=Metabolite(id=row[MET_ID_IDX],
+        if not pd.isnull(row[MET_ID_IDX]):
+            metabolite=Metabolite(id=row[MET_ID_IDX],
                   formula=row[MET_FORMULA_IDX],
                   name=row[MET_NAME_IDX],
                   compartment=compartment,
                   charge=row[MET_CHARGE_IDX])
-        metabolites_list.append(metabolite)
+            metabolites_list.append(metabolite)
     # Add metabolites to the model
-    model.add_metabolites(metabolites_list)
-    
+            
+        else:
+            print("Metabolite: Error on line "+str(index)+", there is no ID");
+    try:
+        model.add_metabolites(metabolites_list)
+    except Exception as e:
+        print("Error adding metabolites")
+        raise e 
     #Import reactions
-    model_excel_reactions=pd.read_excel(file_excel_path,sheet_name=RXN_SHEET_ID)
+    print("Loading reactions...");
+    if file_extension=='.xlsx':
+        model_excel_reactions=pd.read_excel(file_excel_path,sheet_name=RXN_SHEET_ID,engine='openpyxl')
+    elif file_extension=='.xls':
+        model_excel_reactions=pd.read_excel(file_excel_path,sheet_name=RXN_SHEET_ID,engine='xlrd')
+    else:
+        print("Unknown file format")
+        return(None)
 
     for index,row in model_excel_reactions.iterrows():
         if not pd.isna(row[RXN_ID_IDX]):
@@ -49,21 +71,26 @@ def import_excel_model(file_excel_path, model_id="default_model"):
             ub=row[RXN_UPPER_BOUND_IDX] if not pd.isna(row[RXN_UPPER_BOUND_IDX]) else DEFAULT_UPPER_BOUND
             objective_coeff=row[RXN_OBJECTIVE_IDX] if not pd.isna(row[RXN_OBJECTIVE_IDX]) else DEFAULT_OBJECTIVE_COEFF
 
-            reaction=Reaction(id=row[RXN_ID_IDX],
+            try:
+                reaction=Reaction(id=row[RXN_ID_IDX],
                                  name=row[RXN_NAME_IDX],
                                  subsystem=row[RXN_SUBSYSTEM_IDX]
                                  )
 
-            # Add Genes
-            if not pd.isna(row[RXN_GPR_IDX]):
-                reaction.gene_reaction_rule=row[RXN_GPR_IDX]
-            # Add the reaction to the model
-            model.add_reaction(reaction)
-            # Add the reaction formula            
+                # Add Genes
+                if not pd.isna(row[RXN_GPR_IDX]):
+                    reaction.gene_reaction_rule=row[RXN_GPR_IDX]
+                # Add the reaction to the model
+                model.add_reaction(reaction)
+                # Add the reaction formula            
+            except:
+                print("Reaction: Error on line "+str(index)+" "+str(row[RXN_ID_IDX]))
+            
+
             try:
                 model.reactions.get_by_id(row[RXN_ID_IDX]).build_reaction_from_string(row[RXN_REACTION_IDX])
             except Exception as e:
-                print("Error parsing %s string '%s'" % (repr(rxn), rxn_str))
+                print("Error parsing %s string '%s'" % (repr(row), row[RXN_ID_IDX]))
                 raise e 
 
             # Include the objective coefficient and bounds
@@ -71,11 +98,39 @@ def import_excel_model(file_excel_path, model_id="default_model"):
             model.reactions.get_by_id(row[RXN_ID_IDX]).lower_bound=lb
             model.reactions.get_by_id(row[RXN_ID_IDX]).upper_bound=ub
         else:
-            print("The row: "+index+" is empty or doesn't have id.")
+            print("The row: "+str(index)+" is empty or doesn't have id.")
         
     return(model)
 
 def excel_to_sbml(file_excel_path, file_sbml_path,model_id="default_model",**kwargs):
     write_sbml_model(import_excel_model(file_excel_path,model_id),file_sbml_path,**kwargs)
 
+def cobrapy_to_excel(model,filename):
+    reaction_list=list()
+    for reaction in model.reactions:
+        row={"Abbreviation": reaction.id, 
+             "Reaction": reaction.build_reaction_string(),
+             'GPR' : reaction.gene_reaction_rule, 
+             'Lower bound': reaction.lower_bound,
+             'Upper bound': reaction.upper_bound,
+             'Objective': reaction.objective_coefficient,
+            'Confidence Score':4,
+            'Subsystem':reaction.subsystem,
+            'Description':reaction.name}
+        reaction_list.append(row)
+
+    metabolite_list=list()
+    for metabolite in model.metabolites:
+        row={"Abbreviation": metabolite.id, 
+             "Formula": metabolite.formula,
+             'Description' : metabolite.name, 
+             'Compartment': metabolite.compartment,
+             'Charge': metabolite.charge}
+        metabolite_list.append(row)
+
+    df1=pd.DataFrame(reaction_list)
+    df2=pd.DataFrame(metabolite_list)
+    with pd.ExcelWriter(filename) as writer:  
+        df1.to_excel(writer, sheet_name='Reaction List',index=False)
+        df2.to_excel(writer, sheet_name='Metabolite List',index=False)
 
