@@ -19,4 +19,13 @@ my_model=importExcelModel.import_excel_model(file_path,model_id='my_model')
 import importExcelModel
 
 importExcelModel.excel_to_sbml(file_path,sbml_file_path,model_id='my_model')
+
 ```
+### Export cobrapy model to excel format
+```
+import importExcelModel
+
+importExcelModel.cobrapy_to_excel(model,'myModel.xlsx')
+
+```
+
