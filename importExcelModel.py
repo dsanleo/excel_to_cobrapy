@@ -18,6 +18,7 @@ RXN_SUBSYSTEM_IDX='Subsystem'
 RXN_LOWER_BOUND_IDX='Lower bound'
 RXN_UPPER_BOUND_IDX='Upper bound'
 RXN_OBJECTIVE_IDX='Objective'
+RXN_CONFIDENCE_IDX='Confidence Score'
 DEFAULT_LOWER_BOUND=-1000
 DEFAULT_UPPER_BOUND=1000
 DEFAULT_OBJECTIVE_COEFF=0
@@ -81,24 +82,24 @@ def dataframe_to_model(df_reactions,df_metabolites,model_id="myModel"):
 def model_to_dataframe(model):
     reaction_list=list()
     for reaction in model.reactions:
-        row={"Abbreviation": reaction.id, 
-             "Reaction": reaction.build_reaction_string(),
-             'GPR' : reaction.gene_reaction_rule, 
-             'Lower bound': reaction.lower_bound,
-             'Upper bound': reaction.upper_bound,
-             'Objective': reaction.objective_coefficient,
-            'Confidence Score':4,
-            'Subsystem':reaction.subsystem,
-            'Description':reaction.name}
+        row={RXN_ID_IDX: reaction.id, 
+             RXN_REACTION_IDX: reaction.build_reaction_string(),
+             RXN_GPR_IDX : reaction.gene_reaction_rule, 
+             RXN_LOWER_BOUND_IDX: reaction.lower_bound,
+             RXN_UPPER_BOUND_IDX: reaction.upper_bound,
+             RXN_OBJECTIVE_IDX: reaction.objective_coefficient,
+             RXN_CONFIDENCE_IDX:4,
+             RXN_SUBSYSTEM_IDX:reaction.subsystem,
+             RXN_NAME_IDX:reaction.name}
         reaction_list.append(row)
 
     metabolite_list=list()
     for metabolite in model.metabolites:
-        row={"Abbreviation": metabolite.id, 
-             "Formula": metabolite.formula,
-             'Description' : metabolite.name, 
-             'Compartment': metabolite.compartment,
-             'Charge': metabolite.charge}
+        row={MET_ID_IDX: metabolite.id, 
+             MET_FORMULA_IDX: metabolite.formula,
+             MET_NAME_IDX : metabolite.name, 
+             MET_COMPARTMENT_IDX: metabolite.compartment,
+             MET_CHARGE_IDX: metabolite.charge}
         metabolite_list.append(row)
 
     df1=pd.DataFrame(reaction_list)
@@ -164,22 +165,23 @@ def import_excel_model(file_excel_path, model_id="default_model"):
                 if not pd.isna(row[RXN_GPR_IDX]):
                     reaction.gene_reaction_rule=row[RXN_GPR_IDX]
                 # Add the reaction to the model
-                model.add_reaction(reaction)
+                model.add_reactions([reaction])
                 # Add the reaction formula            
-            except:
-                print("Reaction: Error on line "+str(index)+" "+str(row[RXN_ID_IDX]))
-            
-
-            try:
-                model.reactions.get_by_id(row[RXN_ID_IDX]).build_reaction_from_string(row[RXN_REACTION_IDX])
             except Exception as e:
-                print("Error parsing %s string '%s'" % (repr(row), row[RXN_ID_IDX]))
-                raise e 
+                print("Reaction: Error on line "+str(index)+" "+str(row[RXN_ID_IDX]))
+                raise e
+            # Addition of formula, bounds and objective coefficient
+            if row[RXN_ID_IDX] in model.reactions:
+                try:
+                    model.reactions.get_by_id(row[RXN_ID_IDX]).build_reaction_from_string(row[RXN_REACTION_IDX])
+                except Exception as e:
+                    print("Error parsing %s string '%s'" % (repr(row), row[RXN_ID_IDX]))
+                    raise e 
 
-            # Include the objective coefficient and bounds
-            model.reactions.get_by_id(row[RXN_ID_IDX]).objective_coefficient=objective_coeff
-            model.reactions.get_by_id(row[RXN_ID_IDX]).lower_bound=lb
-            model.reactions.get_by_id(row[RXN_ID_IDX]).upper_bound=ub
+                # Include the objective coefficient and bounds
+                model.reactions.get_by_id(row[RXN_ID_IDX]).objective_coefficient=objective_coeff
+                model.reactions.get_by_id(row[RXN_ID_IDX]).lower_bound=lb
+                model.reactions.get_by_id(row[RXN_ID_IDX]).upper_bound=ub
         else:
             print("The row: "+str(index)+" is empty or doesn't have id.")
         
@@ -191,29 +193,29 @@ def excel_to_sbml(file_excel_path, file_sbml_path,model_id="default_model",**kwa
 def cobrapy_to_excel(model,filename):
     reaction_list=list()
     for reaction in model.reactions:
-        row={"Abbreviation": reaction.id, 
-             "Reaction": reaction.build_reaction_string(),
-             'GPR' : reaction.gene_reaction_rule, 
-             'Lower bound': reaction.lower_bound,
-             'Upper bound': reaction.upper_bound,
-             'Objective': reaction.objective_coefficient,
-            'Confidence Score':4,
-            'Subsystem':reaction.subsystem,
-            'Description':reaction.name}
+        row={RXN_ID_IDX: reaction.id, 
+             RXN_REACTION_IDX: reaction.build_reaction_string(),
+             RXN_GPR_IDX : reaction.gene_reaction_rule, 
+             RXN_LOWER_BOUND_IDX: reaction.lower_bound,
+             RXN_UPPER_BOUND_IDX: reaction.upper_bound,
+             RXN_OBJECTIVE_IDX: reaction.objective_coefficient,
+             RXN_CONFIDENCE_IDX:4, # In cobrapy it is removed but it is included
+             RXN_SUBSYSTEM_IDX:reaction.subsystem,
+             RXN_NAME_IDX:reaction.name}
         reaction_list.append(row)
 
     metabolite_list=list()
     for metabolite in model.metabolites:
-        row={"Abbreviation": metabolite.id, 
-             "Formula": metabolite.formula,
-             'Description' : metabolite.name, 
-             'Compartment': metabolite.compartment,
-             'Charge': metabolite.charge}
+        row={MET_ID_IDX: metabolite.id, 
+             MET_FORMULA_IDX: metabolite.formula,
+             MET_NAME_IDX : metabolite.name, 
+             MET_COMPARTMENT_IDX: metabolite.compartment,
+             MET_CHARGE_IDX: metabolite.charge}
         metabolite_list.append(row)
 
     df1=pd.DataFrame(reaction_list)
     df2=pd.DataFrame(metabolite_list)
     with pd.ExcelWriter(filename) as writer:  
-        df1.to_excel(writer, sheet_name='Reaction List',index=False)
-        df2.to_excel(writer, sheet_name='Metabolite List',index=False)
+        df1.to_excel(writer, sheet_name=RXN_SHEET_ID,index=False)
+        df2.to_excel(writer, sheet_name=MET_SHEET_ID,index=False)
 
